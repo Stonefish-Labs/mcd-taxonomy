@@ -47,9 +47,20 @@ No single POI is proof of malice. A hardcoded URL is not malicious. A base64 dec
 
 This taxonomy treats compiled binaries as first-class targets. Decompiled output, disassembly, import tables, string dumps, and behavioral traces are all valid surfaces for POI detection. Where a POI manifests differently in source versus binary form, the description calls this out. Source-to-binary drift — where a compiled artifact contains behaviors not present in the published source — is itself a high-value signal addressed in [Contextual Signals](contextual-signals/).
 
-## Investigation Framework
+## Investigation and Response
 
 Every finding should be accompanied by structured investigation guidance. The [Investigation Framework](investigation/) defines how to move from detection to determination: is this malicious, benign, or inconclusive?
+
+Once a determination is made, the [Response Framework](response-framework/) defines what to do about it — six tiers from closing a benign finding to activating incident response:
+
+| Tier | Name | Summary |
+|---|---|---|
+| 0 | [Informational — Close](response-framework/tier-0-informational.md) | Confirmed benign. Document and close. |
+| 1 | [Document and Monitor](response-framework/tier-1-document-and-monitor.md) | Ambiguous signal. Watch for code changes that escalate. |
+| 2 | [Engineering Referral](response-framework/tier-2-engineering-referral.md) | Security flaw, not malicious. Route to engineering. |
+| 3 | [Passive Monitoring](response-framework/tier-3-passive-monitoring.md) | Instrument and observe. Track execution and code changes. |
+| 4 | [Active Monitoring](response-framework/tier-4-active-monitoring.md) | Real-time alerting. Containment staged and ready. |
+| 5 | [Immediate Response](response-framework/tier-5-immediate-response.md) | Confirmed malicious. Contain, escalate, respond. |
 
 ## Contributing
 
