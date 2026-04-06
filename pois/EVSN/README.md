@@ -22,3 +22,103 @@ Techniques that detect, resist, or circumvent analysis environments, debugging t
 ## Severity Baseline
 
 `EVSN.SANDBOX` and `EVSN.ENVCHECK` are high in library/dependency context. `EVSN.DEBUG` is high outside of development tooling. `EVSN.FORENSIC` is high in all contexts — legitimate code has no reason to falsify timestamps or destroy forensic artifacts. `EVSN.MASQ` is high — legitimate packages do not rename system binaries or disguise their artifacts as OS components.
+
+## Escalation Factors
+
+The following conditions increase the suspicion level of any `EVSN` finding:
+
+- **Evasion gates a payload delivery or exfiltration action.** Any evasion behavior that precedes `EXEC.*`, `NETW.*` (exfiltration), or `PRST.*` raises severity to critical. Evasion alone is suspicious; evasion that controls when a destructive or theft-oriented payload fires confirms adversarial intent.
+- **`EVSN.ENVCHECK` targets specific hosts, usernames, or domain membership.** Checks for named usernames, hostnames, or Active Directory domains indicate a targeted attack rather than opportunistic malware. The payload activates only on matching hosts, which also means it will not fire in generic sandbox analysis — by design.
+- **`EVSN.FORENSIC` replaces evidence rather than deleting it.** Overwriting artifacts with plausible clean content (the Axios compromise replaced its malicious `package.json` with a pre-staged clean stub and deleted `setup.js` after execution) is harder to detect than deletion because file-presence checks pass. Evidence replacement is a higher-confidence indicator than evidence deletion.
+- **Timestamp manipulation targets a specific past date.** Setting timestamps to a precise historical value (the LiteLLM npm track set timestamps to October 26, 1985) suggests automation and coordination, not accidental artifact corruption. Arbitrary-but-specific dates are more suspicious than zeroed or missing timestamps.
+- **`EVSN.MASQ` uses legitimate OS binary names or paths.** Copying a real system binary to a writable location and renaming malicious code after it (the Axios compromise copied `powershell.exe` to `%PROGRAMDATA%\wt.exe`; its macOS binary was named `com.apple.act.mond` under `/Library/Caches/`) exploits allowlist trust. The closer the masquerade is to a real signed system component, the higher the escalation.
+- **Evasion appears in a library or dependency context.** `EVSN.SANDBOX` and `EVSN.DEBUG` checks have no legitimate purpose in a reusable library. In application code they are occasionally defensible (anti-cheat, licensing); in a dependency they are an immediate high-severity indicator.
+- **`EVSN.TIMING` delays are calibrated near sandbox analysis windows.** Sleep or busy-wait delays of 3-7 minutes in dependency code are calibrated to outlast automated sandbox analysis (typically under 5 minutes). Delays in this range in install hooks or startup code are high-confidence evasion.
+- **`EVSN.LOG` targets specific security tooling by name.** Generic logging suppression is lower severity; explicitly disabling named EDR agents, AV processes, or audit daemons by process name or service name indicates adversarial intent against a specific defensive stack.
+- **Evasion is present in install-time hooks.** `postinstall`, `setup.py`, and equivalent hooks execute at package installation with no sandboxing in typical developer workflows. Evasion in these hooks is particularly dangerous because the analysis window is narrow and the execution context is trusted.
+- **Multiple `EVSN` subtypes are present simultaneously.** A single environment check might be explained. The combination of `EVSN.ENVCHECK` + `EVSN.TIMING` + `EVSN.FORENSIC` in the same package indicates coordinated, multi-layered evasion — characteristic of supply chain attack tradecraft rather than accidental or defensive code.
+
+## De-escalation Factors
+
+The following conditions reduce — but do not eliminate — suspicion:
+
+- **`EVSN.DEBUG` in an application with documented anti-cheat or licensing requirements.** Game engines, licensed commercial software, and DRM systems have publicly documented reasons to detect debuggers. Verify the explanation is in public documentation, not just a code comment. *(Caveat: supply chain attackers can include false documentation; confirm the explanation predates the suspicious commit.)*
+- **`EVSN.ENVCHECK` checking CI variables to suppress noisy output or skip integration tests.** Checking `CI=true` or `GITHUB_ACTIONS` to disable interactive prompts or skip slow tests is common and legitimate. Escalate if the check gates network calls, file writes, or subprocess execution rather than UI behavior. *(Caveat: the same CI variable check can suppress payload activation in analysis environments while activating on developer machines — inspect what the check gates, not just that it exists.)*
+- **`EVSN.TIMING` as an intentional rate limiter or retry backoff.** Exponential backoff, polling intervals, and API rate-limit compliance are legitimate reasons for sleep calls. De-escalate only when the delay is proportional to the stated purpose and not concentrated at startup or install time.
+- **`EVSN.MASQ` as a documented compatibility shim.** Some cross-platform tools copy or rename binaries for path compatibility. De-escalate only when the destination path is documented in public changelogs and the binary is signed or hash-verified.
+- **`EVSN.LOG` suppressing verbose debug output in production builds.** Suppressing `console.debug` or reducing log verbosity in a release build is standard practice. This de-escalation applies only when suppression is scoped to log level, not to specific security tooling processes or audit subsystems.
+
+> **Important caveat:** Evasion techniques are by definition designed to appear benign. De-escalation based on a plausible explanation requires verification that the explanation is independently confirmable, predates the suspicious activity, and accounts for the specific implementation details observed. A debugger check in a library "because it does licensing" requires public licensing documentation, not just a comment.
+
+## Common Combinations
+
+| Combination | Suggests | Escalation |
+|---|---|---|
+| `EVSN.ENVCHECK` + `EXEC.SHELL` | Environment check confirms victim profile; shell execution delivers payload only on matching hosts | Very high — targeted supply chain payload delivery |
+| `EVSN.TIMING` + `EXEC.SHELL` | Delay calibrated to outlast sandbox analysis window, then execute payload | Very high — sandbox evasion followed by execution |
+| `EVSN.FORENSIC` + `EVSN.MASQ` | Malicious artifacts replaced with clean stubs; processes or binaries disguised as legitimate components | Very high — the Axios compromise pattern; evidence replacement + masquerading |
+| `EVSN.SANDBOX` + `EVSN.DEBUG` | Multi-layer analysis environment detection | High — coordinated refusal to execute under analysis; raises confidence that evasion is intentional |
+| `OBFS.*` + `EVSN.ENVCHECK` | Encoded payload decoded and executed only when environment check passes | High — evasion controls activation; obfuscation conceals what activates |
+| `EVSN.LOG` + `PRST.*` | Logging suppressed or disabled, persistence mechanism installed | High — persistent silent implant with no audit trail |
+| `EVSN.MASQ` + `PRST.SCHED` | Scheduled task or launch daemon registered under a name mimicking a real OS component | High — legitimate-looking persistence |
+| `EVSN.FORENSIC` + `EVSN.TIMING` | Payload executes, waits, then wipes evidence | High — delayed cleanup avoids correlation of execution and cleanup events in log analysis |
+| `EVSN.ENVCHECK` + `OBFS.*` + `EXEC.SHELL` | Environment gate + encoded payload + shell execution | Very high — the canonical three-layer supply chain attack pattern |
+
+## Disambiguation
+
+### EVSN vs. OBFS — The Core Distinction
+
+This is the most important disambiguation in the taxonomy. **Obfuscation hides *what* code does. Evasion controls *when and where* it does it.**
+
+A string encoded in base64 with no environmental conditioning is `OBFS.ENCODE` — the behavior is always present, merely concealed. The same encoded string decoded and executed only after an environment check passes is `EVSN.ENVCHECK` + `OBFS.ENCODE` — evasion gates activation, obfuscation conceals payload content. Both tags apply; neither subsumes the other.
+
+When both are present, tag both. When only one is present, apply the test: *does this technique change when the code executes, or does it change what an analyst can read?* Changed execution condition = EVSN. Changed readability = OBFS.
+
+### EVSN.MASQ vs. OBFS.RENAME
+
+`OBFS.RENAME` applies to source-level identifiers: function names, variable names, class names in code that is read by humans or static analyzers. `EVSN.MASQ` applies to runtime artifacts: process names, binary file names, scheduled task names, service display names, network traffic patterns. A function named `a1b2()` is `OBFS.RENAME`. A binary copied to `svchost.exe` or a process spawned as `com.apple.mdmclient` is `EVSN.MASQ`. The distinction is the artifact type and the analysis surface being deceived.
+
+### EVSN.ENVCHECK vs. Dead Code
+
+`EVSN.ENVCHECK` is reachable code that executes conditionally based on a live environment query. The payload is real and will fire when conditions are met. Dead code (unreachable branches, hardcoded false conditions, commented-out paths) never executes under any conditions. If a conditional block queries `os.environ`, `platform.node()`, hostname, username, or external state, it is `EVSN.ENVCHECK` regardless of whether the triggering condition was ever observed to fire in analysis. If a block is provably unreachable, it is not `EVSN.ENVCHECK`.
+
+### EVSN.TIMING vs. Normal Asynchronous Code
+
+Not all sleep calls or delays are `EVSN.TIMING`. Apply `EVSN.TIMING` when:
+
+- The delay appears in an install hook, module initialization, or package entry point with no stated operational purpose.
+- The delay duration falls in the 3-10 minute range with no proportional justification (rate limiting, retry logic, polling interval).
+- The delay precedes a network call, subprocess execution, or file write — not I/O it is waiting on.
+
+Standard retry backoff, polling loops with proportional intervals, and UI debounce timers are not `EVSN.TIMING`.
+
+### EVSN.LOG vs. Normal Log Management
+
+`EVSN.LOG` requires evidence that suppression targets security-relevant output or named monitoring components. Reducing log verbosity, rotating logs, or compressing old log files is routine. Apply `EVSN.LOG` when code terminates or suspends named EDR/AV processes, redirects security audit logs to `/dev/null`, modifies kernel audit rules or Windows Event Log permissions, or calls logging APIs to suppress evidence of surrounding malicious behavior.
+
+## Investigation Questions
+
+When an `EVSN` finding is detected, answer these questions to drive the investigation:
+
+### For any EVSN subtype:
+1. **What does the evasion technique gate?** Identify what executes when the evasion check passes (or when it fails, in the case of subtractive checks). If the gated code is network activity, process spawning, or file modification, severity is high regardless of how benign the check itself looks.
+2. **Does the evasion appear in install-time hooks or module initialization?** `postinstall`, `setup.py`, `__init__.py`, and equivalent entry points execute at install or import time with narrow analysis windows. Evasion here is more dangerous than evasion in a rarely-called utility function.
+3. **How many EVSN subtypes are present simultaneously?** A single environment check may have a legitimate explanation. Two or more distinct evasion techniques in the same package indicate layered, intentional evasion design.
+4. **Was the evasion behavior introduced in the same commit as other suspicious changes?** Use version diffs or `git log -S` to identify when each evasion construct was introduced. Evasion added alongside payload delivery is stronger evidence of intent.
+
+### For EVSN.ENVCHECK specifically:
+5. **Is the check additive or subtractive?** Additive: payload fires when condition is true (targeted attack on specific hosts). Subtractive: payload is suppressed when condition is true (suppressed in analysis environments, active everywhere else). Subtractive checks are the dominant supply chain pattern.
+6. **What specific environment properties are checked?** CI variables (`CI=true`), usernames, hostnames, domain membership, geographic indicators? The specificity of the check reveals whether this is targeted or opportunistic.
+
+### For EVSN.FORENSIC specifically:
+7. **Is evidence being replaced or merely deleted?** Deletion leaves an absence; replacement leaves a plausible artifact. Check for write operations targeting the same paths that were previously written by malicious code.
+8. **What is the timestamp manipulation target value?** A zeroed timestamp might be accidental. A precise historical date indicates automation and intent. Check whether the target value is consistent across multiple artifacts.
+
+### For EVSN.MASQ specifically:
+9. **Does the masquerading name match a real signed OS component?** Look up whether the claimed name corresponds to a legitimate component. Verify the binary is not in a writable user-controlled path. Check whether a real binary with that name exists elsewhere on the system — dual presence is a strong indicator.
+
+### For EVSN.TIMING specifically:
+10. **Is the delay proportional to any stated operational purpose?** Identify the nearest stated purpose (retry logic, rate limiting, polling). Calculate whether the delay magnitude and placement are consistent with that purpose. A 5-minute sleep before a DNS lookup has no legitimate retry rationale.
+
+### For EVSN.LOG specifically:
+11. **Does the suppression target a specific named process or audit category, or is it generic?** Pull the exact process names, service names, or audit rule modifications. Generic log-level suppression is low-confidence; named EDR process termination is high-confidence.
