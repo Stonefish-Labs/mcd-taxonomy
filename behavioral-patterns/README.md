@@ -34,3 +34,4 @@ The correct criterion for pattern matching is *reachability*: can the code path 
 | [BP-AGENTMANIP](BP-AGENTMANIP.md) | Agent Manipulation | Manipulates AI agents that process or act on the codebase |
 | [BP-TYPOSQUAT](BP-TYPOSQUAT.md) | Typosquat / Dependency Confusion | Impersonates a legitimate package through name similarity |
 | [BP-LATERAL](BP-LATERAL.md) | Lateral Movement | Spreads presence to other systems within the same environment |
+| [BP-MITM](BP-MITM.md) | Traffic Interception | Positions to intercept, inspect, or modify network traffic between victim and legitimate services |

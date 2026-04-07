@@ -13,3 +13,4 @@ These signals are **supporting evidence** that feeds into the confidence model, 
 | [Source-to-Binary Drift](source-to-binary-drift.md) | Behavioral drift, build irreproducibility, unexpected native extensions |
 | [Temporal Signals](temporal-signals.md) | Abandonment patterns, coordinated publication, pre-staged versions |
 | [Execution Context](execution-context.md) | CI/CD targeting, security tooling context, privileged orchestration |
+| [Network Destination](network-destination.md) | Jurisdictional risk, bulletproof hosting, recently registered domains, dynamic DNS |

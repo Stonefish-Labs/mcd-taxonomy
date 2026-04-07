@@ -31,7 +31,7 @@ No single POI is proof of malice. A hardcoded URL is not malicious. A base64 dec
 | [EVSN](pois/EVSN/) | Evasion & Anti-Analysis | [AITM](pois/AITM/) | AI-Targeted Manipulation |
 | [CRED](pois/CRED/) | Credential & Secret Access | [RSRC](pois/RSRC/) | Resource Manipulation |
 
-### Behavioral Patterns (14)
+### Behavioral Patterns (15)
 
 | ID | Name | ID | Name |
 |---|---|---|---|
@@ -42,6 +42,7 @@ No single POI is proof of malice. A hardcoded URL is not malicious. A base64 dec
 | [BP-EXFIL](behavioral-patterns/BP-EXFIL.md) | Data Exfiltration | [BP-AGENTMANIP](behavioral-patterns/BP-AGENTMANIP.md) | Agent Manipulation |
 | [BP-RANSOM](behavioral-patterns/BP-RANSOM.md) | Ransomware | [BP-TYPOSQUAT](behavioral-patterns/BP-TYPOSQUAT.md) | Typosquat / Dep. Confusion |
 | [BP-TIMEBOMB](behavioral-patterns/BP-TIMEBOMB.md) | Logic Bomb / Time Bomb | [BP-LATERAL](behavioral-patterns/BP-LATERAL.md) | Lateral Movement |
+| [BP-MITM](behavioral-patterns/BP-MITM.md) | Traffic Interception | | |
 
 ## On Binary Analysis
 
@@ -74,10 +75,11 @@ The goal is a community-validated reference that detection tooling, security tea
 
 ## Version History
 
-Current version: **2.2**
+Current version: **2.3**
 
 | Version | Changes |
 |---|---|
+| **2.3** | Added three new POI subtypes: `EVSN.SECDISABLE` (security control disabling — firewalls, AV exclusions, exploit mitigation weakening), `PRIV.ACCOUNT` (account/identity manipulation — backdoor accounts, group membership changes), `FSYS.HIDDEN` (hidden storage mechanisms — NTFS ADS, extended attributes, resource forks). Added `BP-MITM` behavioral pattern for traffic interception and man-in-the-middle setup. Added Network Destination contextual signal category (jurisdictional risk, bulletproof hosting, recently registered domains, dynamic DNS). Enhanced Source-to-Binary Drift signals with binary security posture (disabled exploit mitigations, unsigned/weakly-signed binaries, debug information leakage). |
 | **2.2** | Incorporated lessons from the Axios npm supply chain compromise (March 2026). Added `EVSN.MASQ`, `PKGM.PHANTOM`, expanded `EVSN.FORENSIC` and `EXEC.PROC`, added contextual signals for provenance attestation downgrade and pre-staged clean versions. |
 | **2.1** | Incorporated lessons from the TeamPCP/LiteLLM supply chain campaign (March 2026). Added `RECN.PROCMEM`, `NETW.DECENTRAL`, `EVSN.FORENSIC`, `OBFS.FILELESS`, `BP-LATERAL`, and execution context signals. |
 | **2.0** | Initial public release. 16 POI categories, 14 behavioral patterns, contextual signals, and investigation guidance framework. |
